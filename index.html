@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Bubble Bobble Online</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>%F0%9F%AB%A7</text></svg>">
+</head>
+<body>
+
+<div id="shell">
+  <div id="stage">
+    <canvas id="screen" width="320" height="248"></canvas>
+  </div>
+
+  <div id="touch" aria-hidden="true">
+    <div class="pad">
+      <button class="tbtn" data-btn="left">&#9664;</button>
+      <button class="tbtn" data-btn="right">&#9654;</button>
+    </div>
+    <div class="pad">
+      <button class="tbtn wide" data-btn="fire">BUBBLE</button>
+      <button class="tbtn wide" data-btn="jump">JUMP</button>
+    </div>
+  </div>
+
+  <div id="help">
+    <div class="col">
+      <h2>Player 1 &mdash; Bub</h2>
+      <p><b>&larr; &rarr;</b> move &nbsp; <b>&uarr;</b> jump &nbsp; <b>Space</b> blow bubble</p>
+    </div>
+    <div class="col">
+      <h2>Player 2 &mdash; Bob</h2>
+      <p><b>A / D</b> move &nbsp; <b>W</b> jump &nbsp; <b>S</b> blow bubble</p>
+    </div>
+    <div class="col">
+      <h2>System</h2>
+      <p><b>Enter</b> select &nbsp; <b>P</b> pause &nbsp; <b>M</b> mute &nbsp; <b>Esc</b> title</p>
+    </div>
+  </div>
+
+  <details id="rules">
+    <summary>How to play</summary>
+    <ul>
+      <li>Trap every monster in a bubble, then <b>burst the bubble</b> by touching it. The monster turns into fruit.</li>
+      <li>Pop several trapped bubbles at once for <b>1000 &times; 2<sup>(n-1)</sup></b> points &mdash; 1000, 2000, 4000, 8000&hellip;</li>
+      <li>Multi-pops release <b>EXTEND</b> letters. Collect E-X-T-E-N-D for a free life.</li>
+      <li>Empty bubbles are platforms &mdash; fall onto one to ride it upward.</li>
+      <li>Monsters that escape a bubble turn <b>angry</b> and move much faster.</li>
+      <li>Take too long and <b>HURRY UP!</b> flashes &mdash; then an invincible Skel-Monsta hunts you down.</li>
+      <li>Water, fire and lightning bubbles drift in. Pop one and the element fires <b>away from the way you face</b>.</li>
+      <li>Fall off the bottom of the screen and you reappear at the top.</li>
+    </ul>
+  </details>
+</div>
+
+<script src="js/gfx.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/levels.js"></script>
+<script src="js/entities.js"></script>
+<script src="js/game.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
