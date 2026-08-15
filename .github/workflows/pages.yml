@@ -29,12 +29,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # enablement:true turns Pages on for the repo if it is not already,
-      # so no manual settings change is needed.
+      # Requires Pages to be switched on once by a repo admin:
+      # Settings -> Pages -> Build and deployment -> Source: "GitHub Actions".
+      # The workflow token cannot create the Pages site itself.
       - name: Configure Pages
         uses: actions/configure-pages@v5
-        with:
-          enablement: true
 
       # The game is plain static files, so the repo root ships as-is.
       # This action already excludes .git and .github.

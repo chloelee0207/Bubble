@@ -12,8 +12,13 @@ Locally, open `index.html` in a browser. (Any static file server also works:
 ## Deploying
 
 `.github/workflows/pages.yml` publishes the repo root to GitHub Pages on every
-push to the default branch, and turns Pages on for the repo the first time it
-runs. Nothing is built or bundled — the files are uploaded as they are.
+push to the default branch. Nothing is built or bundled — the files are
+uploaded as they are.
+
+One-time setup, needed because a workflow token is not allowed to create a
+Pages site: go to **Settings → Pages → Build and deployment** and set
+**Source** to **GitHub Actions**. Re-run the workflow afterwards and the site
+goes live.
 
 ## Modes
 
