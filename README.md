@@ -4,8 +4,16 @@ A browser remake of the 1986 Taito arcade platformer, written from scratch in
 plain HTML5 canvas + JavaScript. No build step, no dependencies, no assets —
 every sprite, tile and sound is generated in code.
 
-Open `index.html` in a browser and play. (Any static file server also works:
+**Play it:** https://chloelee0207.github.io/Bubble/
+
+Locally, open `index.html` in a browser. (Any static file server also works:
 `npx http-server .`)
+
+## Deploying
+
+`.github/workflows/pages.yml` publishes the repo root to GitHub Pages on every
+push to the default branch, and turns Pages on for the repo the first time it
+runs. Nothing is built or bundled — the files are uploaded as they are.
 
 ## Modes
 
