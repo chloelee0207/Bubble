@@ -11,7 +11,7 @@
 
 <div id="shell">
   <div id="stage">
-    <canvas id="screen" width="320" height="248"></canvas>
+    <canvas id="screen"></canvas>
   </div>
 
   <div id="touch" aria-hidden="true">
@@ -26,29 +26,24 @@
   </div>
 
   <div id="help">
-    <div class="col">
-      <h2>Player 1 &mdash; Bub</h2>
-      <p><b>&larr; &rarr;</b> move &nbsp; <b>&uarr;</b> jump &nbsp; <b>Space</b> blow bubble</p>
-    </div>
-    <div class="col">
-      <h2>Player 2 &mdash; Bob</h2>
-      <p><b>A / D</b> move &nbsp; <b>W</b> jump &nbsp; <b>S</b> blow bubble</p>
-    </div>
-    <div class="col">
-      <h2>System</h2>
-      <p><b>Enter</b> select &nbsp; <b>P</b> pause &nbsp; <b>M</b> mute &nbsp; <b>Esc</b> title</p>
-    </div>
+    <span><b>&larr; &rarr;</b> <b>&uarr;</b> <b>Space</b> Mochi</span>
+    <span><b>A</b> <b>D</b> <b>W</b> <b>S</b> Puff</span>
+    <span><b>Enter</b> select</span>
+    <span><b>P</b> pause</span>
+    <span><b>M</b> mute</span>
+    <span><b>Esc</b> title</span>
   </div>
 
   <details id="rules">
     <summary>How to play</summary>
     <ul>
-      <li>Trap every monster in a bubble, then <b>burst the bubble</b> by touching it. The monster turns into fruit.</li>
-      <li>Pop several trapped bubbles at once for <b>1000 &times; 2<sup>(n-1)</sup></b> points &mdash; 1000, 2000, 4000, 8000&hellip;</li>
-      <li>Multi-pops release <b>EXTEND</b> letters. Collect E-X-T-E-N-D for a free life.</li>
-      <li>Empty bubbles are platforms &mdash; fall onto one to ride it upward.</li>
+      <li>Trap every monster in a bubble, then <b>burst the bubble</b> by touching it. The monster pops into fruit &mdash; go pick it up.</li>
+      <li>Burst several trapped bubbles at once for <b>1000 &times; 2<sup>(n-1)</sup></b> points &mdash; 1000, 2000, 4000, 8000&hellip;</li>
+      <li>Multi-pops shake loose <b>EXTEND</b> letters. Collect E-X-T-E-N-D for a free life.</li>
+      <li>Empty bubbles are platforms &mdash; drop onto one and <b>ride it upward</b> to reach anywhere.</li>
+      <li>Every rung is also within jumping range, so you can always climb on foot.</li>
       <li>Monsters that escape a bubble turn <b>angry</b> and move much faster.</li>
-      <li>Take too long and <b>HURRY UP!</b> flashes &mdash; then an invincible Skel-Monsta hunts you down.</li>
+      <li>Take too long and <b>HURRY UP!</b> flashes &mdash; then an invincible hunter comes for you.</li>
       <li>Water, fire and lightning bubbles drift in. Pop one and the element fires <b>away from the way you face</b>.</li>
       <li>Fall off the bottom of the screen and you reappear at the top.</li>
     </ul>

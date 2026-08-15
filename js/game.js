@@ -3,14 +3,14 @@
    ------------------------------------------------------------------ */
 
 var MODES = [
-  { id: '1p', label: '1 PLAYER', blurb: 'BUB ALONE AGAINST THE CAVE' },
-  { id: 'coop', label: '2 PLAYER TEAM', blurb: 'BUB AND BOB CLEAR ROUNDS TOGETHER' },
-  { id: 'versus', label: '2 PLAYER VERSUS', blurb: 'BUBBLE YOUR RIVAL - TOP SCORE WINS' }
+  { id: '1p', label: 'SOLO', blurb: 'MOCHI TAKES ON THE CAVERN ALONE' },
+  { id: 'coop', label: 'TEAM UP', blurb: 'MOCHI AND PUFF CLEAR ROUNDS TOGETHER' },
+  { id: 'versus', label: 'VERSUS', blurb: 'BUBBLE YOUR RIVAL - TOP SCORE WINS' }
 ];
 
-var ROUND_TIME = 2400;       // 40s before HURRY UP!
-var SKEL_DELAY = 600;        // 10s after HURRY UP! before the hunter arrives
-var VERSUS_TIME = 120 * 60;  // 2 minute match
+var ROUND_TIME = 2700;       // 45s before HURRY UP!
+var HUNTER_DELAY = 600;      // 10s later the hunter arrives
+var VERSUS_TIME = 120 * 60;
 
 var Game = {
   state: 'title',
@@ -19,8 +19,7 @@ var Game = {
   round: 1,
   paused: false,
   hiScore: 30000,
-  titleT: 0,
-  titleBubbles: [],
+  clock: 0,
 
   level: null,
   players: [],
@@ -31,12 +30,12 @@ var Game = {
   effects: [],
   parts: [],
   pops: [],
-  skels: [],
+  hunters: [],
 
   roundTimer: ROUND_TIME,
   hurry: false,
   hurryFlash: 0,
-  skelTimer: 0,
+  hunterTimer: 0,
   killIndex: 0,
   specialTimer: 540,
   clearTimer: 0,
@@ -46,6 +45,7 @@ var Game = {
   banner: '',
   bannerSub: '',
   endTimer: 0,
+  shake: 0,
 
   /* ---------------------------------------------------------------- */
   init: function () {
@@ -53,15 +53,6 @@ var Game = {
       var hs = localStorage.getItem('bubblebobble.hiscore');
       if (hs) this.hiScore = Math.max(this.hiScore, parseInt(hs, 10) || 0);
     } catch (e) { /* storage may be unavailable */ }
-    for (var i = 0; i < 14; i++) {
-      this.titleBubbles.push({
-        x: Math.random() * WORLD_W,
-        y: Math.random() * WORLD_H,
-        r: 4 + Math.random() * 6,
-        s: 0.2 + Math.random() * 0.5,
-        w: Math.random() * 6
-      });
-    }
   },
 
   saveHi: function () {
@@ -89,7 +80,8 @@ var Game = {
       tiles: def.tiles,
       theme: def.theme,
       drift: def.drift,
-      spawn: def.spawn
+      spawn: def.spawn,
+      _blocks: null
     };
 
     this.bubbles = [];
@@ -99,14 +91,15 @@ var Game = {
     this.effects = [];
     this.parts = [];
     this.pops = [];
-    this.skels = [];
+    this.hunters = [];
     this.killIndex = 0;
     this.hurry = false;
     this.hurryFlash = 0;
-    this.skelTimer = 0;
+    this.hunterTimer = 0;
     this.clearTimer = 0;
     this.specialTimer = 420;
-    this.roundTimer = Math.max(1200, ROUND_TIME - this.difficulty * 300);
+    this.shake = 0;
+    this.roundTimer = Math.max(1500, ROUND_TIME - this.difficulty * 300);
 
     var d = this.difficulty;
     if (this.mode === 'versus') {
@@ -118,43 +111,37 @@ var Game = {
         var e = def.enemies[i];
         this.enemies.push(new Enemy(e[0], e[1], e[2], d));
       }
-      /* each loop through the 12 rounds adds an extra angry-fast walker */
       for (var k = 0; k < d && k < 4; k++) {
-        this.enemies.push(new Enemy('zen', 3 + k * 4, 1, d));
+        this.enemies.push(new Enemy('chick', 4 + k * 5, 1, d));
       }
     }
 
     for (var p = 0; p < this.players.length; p++) {
       var pl = this.players[p];
       var sp = this.level.spawn[p] || this.level.spawn[0];
-      pl.reset(sp[0] * TILE + 2, sp[1] * TILE + 2);
+      pl.reset(sp[0] * TILE + 2, sp[1] * TILE - 3);
       pl.clearPowers();
-      if (this.mode === 'versus') { pl.lives = 0; }
+      if (this.mode === 'versus') pl.lives = 0;
     }
 
     this.state = 'ready';
-    this.readyTimer = 100;
-    this.banner = this.mode === 'versus' ? 'VERSUS' : 'ROUND ' + pad(this.round, 2);
+    this.readyTimer = 105;
+    this.banner = this.mode === 'versus' ? 'VERSUS' : 'ROUND ' + this.round;
     this.bannerSub = this.mode === 'versus' ? 'BUBBLE YOUR RIVAL' : 'READY';
   },
 
   /* ---------------------------------------------------------------- */
   update: function (inputs, ui) {
-    this.titleT++;
+    this.clock++;
+    if (this.shake > 0) this.shake--;
 
-    if (this.state === 'title') {
-      this.updateTitle(ui);
-      return;
-    }
+    if (this.state === 'title') { this.updateTitle(ui); return; }
 
     if (ui.pausePressed && (this.state === 'play' || this.state === 'ready')) {
       this.paused = !this.paused;
       Sound.play('select');
     }
-    if (ui.escapePressed) {
-      this.toTitle();
-      return;
-    }
+    if (ui.escapePressed) { this.toTitle(); return; }
     if (this.paused) return;
 
     Sound.tickMusic(this.hurry);
@@ -164,26 +151,19 @@ var Game = {
       this.updateWorld(inputs, true);
       return;
     }
-
     if (this.state === 'play') {
       this.updateWorld(inputs, false);
       return;
     }
-
     if (this.state === 'clear') {
       this.updateWorld(inputs, true);
-      if (--this.clearTimer <= 0) {
-        this.round++;
-        this.loadRound();
-      }
+      if (--this.clearTimer <= 0) { this.round++; this.loadRound(); }
       return;
     }
-
     if (this.state === 'gameover' || this.state === 'versusover') {
       this.updateWorld(inputs, true);
       if (this.endTimer > 0) this.endTimer--;
       if (this.endTimer <= 0 && ui.confirmPressed) this.toTitle();
-      return;
     }
   },
 
@@ -195,13 +175,6 @@ var Game = {
   },
 
   updateTitle: function (ui) {
-    for (var i = 0; i < this.titleBubbles.length; i++) {
-      var b = this.titleBubbles[i];
-      b.y -= b.s;
-      b.w += 0.05;
-      b.x += Math.sin(b.w) * 0.4;
-      if (b.y < -10) { b.y = WORLD_H + 10; b.x = Math.random() * WORLD_W; }
-    }
     if (ui.upPressed) { this.menuIndex = (this.menuIndex + MODES.length - 1) % MODES.length; Sound.play('select'); }
     if (ui.downPressed) { this.menuIndex = (this.menuIndex + 1) % MODES.length; Sound.play('select'); }
     if (ui.confirmPressed) this.startGame(MODES[this.menuIndex].id);
@@ -218,12 +191,11 @@ var Game = {
       }
       for (i = 0; i < this.enemies.length; i++) this.enemies[i].update(this);
       for (i = 0; i < this.rocks.length; i++) this.rocks[i].update(this);
-      for (i = 0; i < this.skels.length; i++) this.skels[i].update(this);
+      for (i = 0; i < this.hunters.length; i++) this.hunters[i].update(this);
     }
 
     for (i = 0; i < this.bubbles.length; i++) this.bubbles[i].update(this);
     for (i = 0; i < this.items.length; i++) this.items[i].update(this);
-    /* snapshot: fire drops seed new drops, which start next frame */
     var nEffects = this.effects.length;
     for (i = 0; i < nEffects; i++) this.effects[i].update(this);
     for (i = 0; i < this.parts.length; i++) this.parts[i].update();
@@ -231,12 +203,7 @@ var Game = {
 
     this.separateBubbles();
 
-    if (!frozen) {
-      this.collide();
-      this.timers();
-    }
-
-    /* level-clear vacuum: leftover goodies fly into the players */
+    if (!frozen) { this.collide(); this.timers(); }
     if (this.state === 'clear') this.vacuumItems();
 
     this.bubbles = this.bubbles.filter(notDead);
@@ -249,7 +216,6 @@ var Game = {
   },
 
   timers: function () {
-    /* element bubbles drift in from the sides now and then */
     if (--this.specialTimer <= 0) {
       this.specialTimer = 500 + Math.floor(Math.random() * 300);
       this.spawnSpecialBubble();
@@ -267,17 +233,18 @@ var Game = {
     if (!this.hurry) {
       if (--this.roundTimer <= 0) {
         this.hurry = true;
-        this.hurryFlash = 180;
-        this.skelTimer = SKEL_DELAY;
+        this.hurryFlash = 200;
+        this.hunterTimer = HUNTER_DELAY;
+        this.shake = 20;
         Sound.play('hurry');
         for (var i = 0; i < this.enemies.length; i++) this.enemies[i].enrage();
       }
     } else {
       if (this.hurryFlash > 0) this.hurryFlash--;
-      if (--this.skelTimer <= 0) {
-        this.skelTimer = 900;
-        if (this.skels.length < 2) {
-          this.skels.push(new Skel(this.skels.length === 0 ? 16 : WORLD_W - 32, 24));
+      if (--this.hunterTimer <= 0) {
+        this.hunterTimer = 900;
+        if (this.hunters.length < 2) {
+          this.hunters.push(new Hunter(this.hunters.length === 0 ? 20 : WORLD_W - 36, 30));
           Sound.play('death');
         }
       }
@@ -285,11 +252,11 @@ var Game = {
 
     if (this.state === 'play' && this.enemies.length === 0) {
       this.state = 'clear';
-      this.clearTimer = 170;
+      this.clearTimer = 180;
       this.banner = 'ROUND CLEAR';
       this.bannerSub = '';
       Sound.play('clear');
-      this.skels = [];
+      this.hunters = [];
     }
   },
 
@@ -336,7 +303,7 @@ var Game = {
       }
     }
 
-    /* --- players vs bubbles --- */
+    /* --- players vs bubbles (ride the empty ones, burst the rest) --- */
     for (i = 0; i < this.players.length; i++) {
       p = this.players[i];
       if (!p.active || !p.alive || p.dying > 0 || p.respawn > 0 || p.trapBubble) continue;
@@ -350,13 +317,15 @@ var Game = {
         var pb = p.y + p.h;
         var horizontally = (p.x + p.w > b.x - b.r + 1) && (p.x < b.x + b.r - 1);
 
-        /* land on top of a plain bubble and ride it */
+        /* a generous landing window makes bubble-riding easy to pull off */
         if (!b.trapped && !b.content && p.vy >= 0 && horizontally &&
-            pb - p.vy <= top + 4 && pb >= top && pb <= top + 9) {
+            pb - p.vy <= top + 6 && pb >= top - 1 && pb <= top + 13) {
           p.y = top - p.h;
           p.vy = 0;
           p.onGround = true;
-          b.y += 0.15;      /* your weight slows the bubble, but it still lifts you */
+          p.coyote = COYOTE_FRAMES;
+          p.riding = b;
+          b.y += 0.10;             /* your weight barely slows the rise */
           continue;
         }
 
@@ -364,8 +333,7 @@ var Game = {
       }
     }
 
-    /* --- monsters can bump a bubble a player is trapped in? no; but
-           monsters do hurt players --- */
+    /* --- monsters hurt players --- */
     for (i = 0; i < this.players.length; i++) {
       p = this.players[i];
       if (!this.playerVulnerable(p)) continue;
@@ -376,7 +344,7 @@ var Game = {
       }
     }
 
-    /* --- rocks --- */
+    /* --- stars --- */
     for (i = 0; i < this.rocks.length; i++) {
       var r = this.rocks[i];
       if (r.dead) continue;
@@ -388,8 +356,8 @@ var Game = {
     }
 
     /* --- the hunter --- */
-    for (i = 0; i < this.skels.length; i++) {
-      var s = this.skels[i];
+    for (i = 0; i < this.hunters.length; i++) {
+      var s = this.hunters[i];
       for (j = 0; j < this.players.length; j++) {
         p = this.players[j];
         if (!this.playerVulnerable(p)) continue;
@@ -410,16 +378,16 @@ var Game = {
         if (rectsOverlap(fx, e)) {
           e.dead = true;
           this.burst(e.x + e.w / 2, e.y + e.h / 2, gem.color);
-          this.items.push(new Item('gem', e.x + 1, e.y + 2, gem));
+          this.items.push(new Item('gem', e.x + 1, e.y + 2, gem, true));
           Sound.play('kill');
         }
       }
     }
 
-    /* --- picking things up --- */
+    /* --- picking things up (loot needs a moment in the air first) --- */
     for (i = 0; i < this.items.length; i++) {
       var it = this.items[i];
-      if (it.dead) continue;
+      if (it.dead || it.pickupT > 0) continue;
       for (j = 0; j < this.players.length; j++) {
         p = this.players[j];
         if (!p.active || !p.alive || p.dying > 0 || p.respawn > 0 || p.trapBubble) continue;
@@ -437,14 +405,13 @@ var Game = {
   spawnPlayerBubble: function (p) {
     var dir = p.facing;
     var b = new Bubble(
-      p.x + p.w / 2 + dir * 11,
+      p.x + p.w / 2 + dir * 12,
       p.y + 5,
       dir, p,
-      { speed: p.fastBubble ? 4.4 : 3.2, range: p.longBubble ? 42 : 26 }
+      { speed: p.fastBubble ? 4.6 : 3.4, range: p.longBubble ? 44 : 28 }
     );
     this.bubbles.push(b);
 
-    /* a shot can also catch the other dragon - they float free after a while */
     for (var i = 0; i < this.players.length; i++) {
       var o = this.players[i];
       if (o === p || !o.active || !o.alive || o.trapBubble || o.dying > 0 || o.respawn > 0) continue;
@@ -461,13 +428,13 @@ var Game = {
     var kinds = ['water', 'fire', 'lightning'];
     var kind = kinds[Math.floor(Math.random() * kinds.length)];
     var fromLeft = Math.random() < 0.5;
-    var b = new Bubble(fromLeft ? TILE * 1.5 : WORLD_W - TILE * 1.5, WORLD_H - TILE * 2,
+    var b = new Bubble(fromLeft ? TILE * 2 : WORLD_W - TILE * 2, WORLD_H - TILE * 2,
                        fromLeft ? 1 : -1, null, {});
     b.phase = 'float';
     b.vx = 0;
     b.content = kind;
     b.canTrap = false;
-    b.life = 600;
+    b.life = 640;
     this.bubbles.push(b);
   },
 
@@ -493,7 +460,7 @@ var Game = {
       victim.vy = 0;
       if (this.mode === 'versus' && popper !== victim) {
         popper.addScore(2000);
-        this.pops.push(new ScorePop(b.x, b.y - 8, '2000', popper.color));
+        this.pops.push(new ScorePop(b.x, b.y - 10, '2000', popper.color));
         victim.score = Math.max(0, victim.score - 500);
         this.burst(b.x, b.y, victim.color);
         victim.invuln = 120;
@@ -505,11 +472,7 @@ var Game = {
       return;
     }
 
-    if (b.content) {
-      b.dead = true;
-      this.triggerElement(b, popper);
-      return;
-    }
+    if (b.content) { b.dead = true; this.triggerElement(b, popper); return; }
 
     b.dead = true;
     popper.addScore(10);
@@ -517,8 +480,7 @@ var Game = {
     Sound.play('pop');
   },
 
-  /* Popping several trapped monsters together is the heart of the scoring:
-     1000, 2000, 4000, 8000 ... = 1000 * 2^(n-1) */
+  /* Popping several trapped monsters together: 1000 * 2^(n-1) */
   popTrappedCluster: function (start, popper) {
     var cluster = [];
     var queue = [start];
@@ -529,13 +491,14 @@ var Game = {
       for (var i = 0; i < this.bubbles.length; i++) {
         var o = this.bubbles[i];
         if (o === b || o.dead || !o.enemy || cluster.indexOf(o) >= 0) continue;
-        if (Math.hypot(o.x - b.x, o.y - b.y) <= b.r + o.r + 6) queue.push(o);
+        if (Math.hypot(o.x - b.x, o.y - b.y) <= b.r + o.r + 8) queue.push(o);
       }
     }
 
     var n = cluster.length;
     var bonus = 1000 * Math.pow(2, n - 1);
     popper.addScore(bonus);
+    if (n > 1) this.shake = 12;
 
     var cx = 0, cy = 0;
     for (var k = 0; k < n; k++) {
@@ -550,15 +513,14 @@ var Game = {
     }
     cx /= n; cy /= n;
 
-    this.pops.push(new ScorePop(cx, cy - 10, String(bonus), n > 1 ? '#ffe14a' : '#ffffff'));
+    this.pops.push(new ScorePop(cx, cy - 14, String(bonus), n > 1 ? '#ffe14a' : '#ffffff'));
     Sound.play(n > 1 ? 'chain' : 'kill');
 
-    /* multi-pops are what shake EXTEND letters loose */
     if (n >= 2) {
       for (var m = 0; m < n - 1; m++) {
         var idx = this.pickLetter(popper);
         if (idx < 0) break;
-        this.items.push(new Item('letter', cx - 5 + m * 12, cy - 12, { letter: idx }));
+        this.items.push(new Item('letter', cx - 6 + m * 14, cy - 16, { letter: idx }));
       }
     }
   },
@@ -573,30 +535,30 @@ var Game = {
   dropLoot: function (enemy, x, y) {
     var f = FRUIT_TABLE[Math.min(this.killIndex, FRUIT_TABLE.length - 1)];
     this.killIndex++;
-    this.items.push(new Item('fruit', x - 5, y - 5, f));
-    if (Math.random() < 0.16) {
+    this.items.push(new Item('fruit', x - 6, y - 6, f, true));
+    if (Math.random() < 0.18) {
       var keys = Object.keys(POWER_DEFS);
       var key = keys[Math.floor(Math.random() * keys.length)];
-      this.items.push(new Item('power', x - 5 + 12, y - 8, {
+      this.items.push(new Item('power', x - 6, y - 10, {
         power: key, value: POWER_DEFS[key].value
-      }));
+      }, true));
     }
   },
 
   triggerElement: function (b, popper) {
-    /* the element always shoots AWAY from the way the popper is facing */
     var dir = popper ? -popper.facing : (Math.random() < 0.5 ? -1 : 1);
     if (b.content === 'water') {
-      this.effects.push(new WaterDrop(b.x - 4, b.y - 4, dir));
+      this.effects.push(new WaterDrop(b.x - 5, b.y - 5, dir));
       Sound.play('water');
     } else if (b.content === 'fire') {
       for (var i = 0; i < 2; i++) {
-        this.effects.push(new FireDrop(b.x - 4 + i * dir * 8, b.y - 4, dir, 4));
+        this.effects.push(new FireDrop(b.x - 5 + i * dir * 9, b.y - 5, dir, 4));
       }
       Sound.play('fire');
     } else {
-      this.effects.push(new Bolt(b.x - 8, b.y - 3, dir));
+      this.effects.push(new Bolt(b.x - 9, b.y - 4, dir));
       Sound.play('thunder');
+      this.shake = 10;
     }
     this.burst(b.x, b.y, b.content === 'water' ? '#5cc8ff'
                        : b.content === 'fire' ? '#ff9040' : '#ffe14a');
@@ -608,7 +570,7 @@ var Game = {
       var full = p.takeLetter(it.data.letter);
       if (full) {
         Sound.play('extend');
-        this.pops.push(new ScorePop(it.x + 5, it.y - 6, 'EXTEND', '#ffe14a'));
+        this.pops.push(new ScorePop(it.x + 6, it.y - 8, 'EXTEND!', '#ffe14a'));
       } else {
         Sound.play('letter');
       }
@@ -617,13 +579,13 @@ var Game = {
     if (it.kind === 'power') {
       this.applyPower(p, it.data.power);
       p.addScore(it.data.value || 100);
-      this.pops.push(new ScorePop(it.x + 5, it.y - 6, String(it.data.value || 100), p.color));
+      this.pops.push(new ScorePop(it.x + 6, it.y - 8, POWER_DEFS[it.data.power].hint, p.color));
       Sound.play('item');
       return;
     }
     var v = it.data.value || 0;
     p.addScore(v);
-    this.pops.push(new ScorePop(it.x + 5, it.y - 6, String(v), '#ffffff'));
+    this.pops.push(new ScorePop(it.x + 6, it.y - 8, String(v), '#ffffff'));
     Sound.play('item');
   },
 
@@ -646,7 +608,7 @@ var Game = {
     e.y = b.y - e.h / 2;
     e.vy = 0;
     e.enrage();
-    this.burst(b.x, b.y, '#ff6060');
+    this.burst(b.x, b.y, '#ff6b5e');
     Sound.play('pop');
   },
 
@@ -666,7 +628,8 @@ var Game = {
   killPlayer: function (p) {
     if (!this.playerVulnerable(p)) return;
     p.dying = 60;
-    p.vy = -3;
+    p.vy = -3.2;
+    this.shake = 14;
     Sound.play('death');
     this.burst(p.x + p.w / 2, p.y + p.h / 2, p.color);
     if (this.mode === 'versus') p.score = Math.max(0, p.score - 1000);
@@ -674,10 +637,7 @@ var Game = {
 
   finishDeath: function (p) {
     p.clearPowers();
-    if (this.mode === 'versus') {
-      p.respawn = 60;
-      return;
-    }
+    if (this.mode === 'versus') { p.respawn = 60; return; }
     p.lives--;
     if (p.lives < 0) {
       p.active = false;
@@ -693,7 +653,7 @@ var Game = {
   respawnPlayer: function (p) {
     var idx = this.players.indexOf(p);
     var sp = this.level.spawn[idx] || this.level.spawn[0];
-    p.reset(sp[0] * TILE + 2, sp[1] * TILE + 2);
+    p.reset(sp[0] * TILE + 2, sp[1] * TILE - 3);
     p.clearPowers();
   },
 
@@ -711,7 +671,7 @@ var Game = {
     this.endTimer = 90;
     var a = this.players[0], b = this.players[1];
     this.banner = a.score === b.score ? 'DRAW GAME'
-                : (a.score > b.score ? 'BUB WINS!' : 'BOB WINS!');
+                : (a.score > b.score ? a.name + ' WINS!' : b.name + ' WINS!');
     Sound.stopMusic();
     Sound.play('extend');
     this.updateHi();
@@ -729,21 +689,22 @@ var Game = {
       var it = this.items[i];
       var p = this.nearestPlayer(it);
       if (!p) continue;
-      var dx = (p.x + p.w / 2) - (it.x + 5);
-      var dy = (p.y + p.h / 2) - (it.y + 5);
+      it.pickupT = 0;
+      var dx = (p.x + p.w / 2) - (it.x + 6);
+      var dy = (p.y + p.h / 2) - (it.y + 6);
       var d = Math.hypot(dx, dy) || 1;
       it.floaty = true;
-      it.x += dx / d * 3.2;
-      it.y += dy / d * 3.2;
-      if (d < 8) this.collectItem(it, p);
+      it.x += dx / d * 3.6;
+      it.y += dy / d * 3.6;
+      if (d < 9) this.collectItem(it, p);
     }
   },
 
   burst: function (x, y, color) {
-    for (var i = 0; i < 8; i++) {
-      var a = (i / 8) * Math.PI * 2;
+    for (var i = 0; i < 10; i++) {
+      var a = (i / 10) * Math.PI * 2;
       this.parts.push(new Particle(
-        x, y, Math.cos(a) * 1.6, Math.sin(a) * 1.6 - 0.5, color, 22, 2
+        x, y, Math.cos(a) * 1.8, Math.sin(a) * 1.8 - 0.5, color, 26, 2.6
       ));
     }
   },
@@ -761,34 +722,39 @@ var Game = {
   },
 
   /* ================================================================
-     DRAWING
+     DRAWING - everything below is in world units
      ================================================================ */
   draw: function (ctx) {
-    ctx.imageSmoothingEnabled = false;
+    ctx.setTransform(View.scale, 0, 0, View.scale, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.fillStyle = '#05060f';
+    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+
     if (this.state === 'title') { this.drawTitle(ctx); return; }
 
-    var theme = THEMES[this.level.theme];
-    ctx.fillStyle = '#000000';
-    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-    ctx.fillStyle = theme.bg;
-    ctx.fillRect(0, HUD_H, WORLD_W, WORLD_H);
+    var sx = 0, sy = 0;
+    if (this.shake > 0) {
+      sx = (Math.random() - 0.5) * this.shake * 0.35;
+      sy = (Math.random() - 0.5) * this.shake * 0.35;
+    }
 
     ctx.save();
-    ctx.translate(0, HUD_H);
     ctx.beginPath();
-    ctx.rect(0, 0, WORLD_W, WORLD_H);
+    ctx.rect(0, HUD_H, WORLD_W, WORLD_H);
     ctx.clip();
+    ctx.translate(sx, HUD_H + sy);
 
-    this.drawTiles(ctx);
+    drawBackdrop(ctx, this.level.theme, this.clock);
+    drawBlocks(ctx, this.level);
 
     var i;
-    for (i = 0; i < this.items.length; i++) this.items[i].draw(ctx);
+    for (i = 0; i < this.items.length; i++) this.items[i].draw(ctx, this.clock);
     for (i = 0; i < this.effects.length; i++) this.effects[i].draw(ctx);
     for (i = 0; i < this.enemies.length; i++) this.enemies[i].draw(ctx);
     for (i = 0; i < this.rocks.length; i++) this.rocks[i].draw(ctx);
-    for (i = 0; i < this.bubbles.length; i++) this.bubbles[i].draw(ctx);
     for (i = 0; i < this.players.length; i++) if (this.players[i].active) this.players[i].draw(ctx);
-    for (i = 0; i < this.skels.length; i++) this.skels[i].draw(ctx);
+    for (i = 0; i < this.bubbles.length; i++) this.bubbles[i].draw(ctx, this.clock);
+    for (i = 0; i < this.hunters.length; i++) this.hunters[i].draw(ctx);
     for (i = 0; i < this.parts.length; i++) this.parts[i].draw(ctx);
     for (i = 0; i < this.pops.length; i++) this.pops[i].draw(ctx);
 
@@ -798,167 +764,166 @@ var Game = {
     this.drawHud(ctx);
 
     if (this.paused) {
-      ctx.fillStyle = 'rgba(0,0,0,0.65)';
+      ctx.fillStyle = 'rgba(5,6,15,0.78)';
       ctx.fillRect(0, HUD_H, WORLD_W, WORLD_H);
-      drawTextCenteredShadow(ctx, 'PAUSED', WORLD_W / 2, HUD_H + 100, 2, '#ffffff');
-      drawTextCenteredShadow(ctx, 'PRESS P TO RESUME', WORLD_W / 2, HUD_H + 120, 1, '#9aa0c0');
-    }
-  },
-
-  drawTiles: function (ctx) {
-    var img = TILE_CACHE[this.level.theme];
-    for (var r = 0; r < ROWS; r++) {
-      var row = this.level.tiles[r];
-      for (var c = 0; c < COLS; c++) {
-        var t = row[c];
-        if (t === 'X' || t === '#') ctx.drawImage(img, c * TILE, r * TILE);
-      }
+      txtGlow(ctx, 'PAUSED', WORLD_W / 2, HUD_H + 118, 30, '#ffffff', 'center');
+      txtGlow(ctx, 'PRESS P TO RESUME', WORLD_W / 2, HUD_H + 146, 11, '#9aa8d0', 'center');
     }
   },
 
   drawOverlays: function (ctx) {
+    var cx = WORLD_W / 2;
     if (this.state === 'ready') {
-      drawTextCenteredShadow(ctx, this.banner, WORLD_W / 2, 88, 2, '#ffe14a');
-      if (this.bannerSub) {
-        drawTextCenteredShadow(ctx, this.bannerSub, WORLD_W / 2, 112, 1, '#ffffff');
-      }
+      txtGlow(ctx, this.banner, cx, 108, 30, '#ffe14a', 'center');
+      if (this.bannerSub) txtGlow(ctx, this.bannerSub, cx, 136, 13, '#ffffff', 'center');
     } else if (this.state === 'clear') {
-      drawTextCenteredShadow(ctx, this.banner, WORLD_W / 2, 96, 2, '#7cff9c');
-    } else if (this.state === 'gameover') {
-      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      txtGlow(ctx, this.banner, cx, 118, 28, '#7cffb0', 'center');
+    } else if (this.state === 'gameover' || this.state === 'versusover') {
+      ctx.fillStyle = 'rgba(5,6,15,0.72)';
       ctx.fillRect(0, 0, WORLD_W, WORLD_H);
-      drawTextCenteredShadow(ctx, 'GAME OVER', WORLD_W / 2, 80, 2, '#ff5a5a');
+      var top = this.state === 'gameover' ? '#ff6b6b' : '#ffe14a';
+      txtGlow(ctx, this.banner, cx, 92, 32, top, 'center');
       for (var i = 0; i < this.players.length; i++) {
         var p = this.players[i];
-        drawTextCenteredShadow(ctx, p.name + '  ' + pad(p.score, 6),
-          WORLD_W / 2, 108 + i * 14, 1, p.color);
+        drawCritter(ctx, p.kind, cx - 62, 132 + i * 26, 1, this.clock, { scale: 0.62 });
+        txtGlow(ctx, p.name, cx - 40, 124 + i * 26, 13, p.color, 'left');
+        txtGlow(ctx, pad(p.score, 6), cx + 76, 124 + i * 26, 15, '#ffffff', 'right');
       }
-      if (this.endTimer <= 0 && Math.floor(this.titleT / 20) % 2 === 0) {
-        drawTextCenteredShadow(ctx, 'PRESS ENTER', WORLD_W / 2, 150, 1, '#ffffff');
-      }
-    } else if (this.state === 'versusover') {
-      ctx.fillStyle = 'rgba(0,0,0,0.6)';
-      ctx.fillRect(0, 0, WORLD_W, WORLD_H);
-      drawTextCenteredShadow(ctx, this.banner, WORLD_W / 2, 78, 2, '#ffe14a');
-      for (var j = 0; j < this.players.length; j++) {
-        var q = this.players[j];
-        drawTextCenteredShadow(ctx, q.name + '  ' + pad(q.score, 6),
-          WORLD_W / 2, 108 + j * 14, 1, q.color);
-      }
-      if (this.endTimer <= 0 && Math.floor(this.titleT / 20) % 2 === 0) {
-        drawTextCenteredShadow(ctx, 'PRESS ENTER', WORLD_W / 2, 150, 1, '#ffffff');
+      if (this.endTimer <= 0 && Math.floor(this.clock / 22) % 2 === 0) {
+        txtGlow(ctx, 'PRESS ENTER', cx, 202, 13, '#ffffff', 'center');
       }
     }
 
-    if (this.hurry && this.hurryFlash > 0 && Math.floor(this.hurryFlash / 8) % 2 === 0) {
-      drawTextCenteredShadow(ctx, 'HURRY UP!', WORLD_W / 2, 60, 2, '#ff4040');
+    if (this.hurry && this.hurryFlash > 0 && Math.floor(this.hurryFlash / 9) % 2 === 0) {
+      txtGlow(ctx, 'HURRY UP!', cx, 70, 30, '#ff5544', 'center');
     }
   },
 
+  /* ---- HUD ---- */
   drawHud: function (ctx) {
-    ctx.fillStyle = '#000000';
+    var g = ctx.createLinearGradient(0, 0, 0, HUD_H);
+    g.addColorStop(0, '#141830');
+    g.addColorStop(1, '#0a0c1c');
+    ctx.fillStyle = g;
     ctx.fillRect(0, 0, VIEW_W, HUD_H);
+    ctx.fillStyle = 'rgba(255,255,255,0.10)';
+    ctx.fillRect(0, HUD_H - 1, VIEW_W, 1);
 
     var p1 = this.players[0];
     var p2 = this.players[1];
+    var solo = this.mode === '1p';
 
-    drawText(ctx, '1UP', 4, 2, 1, '#4cf05c');
-    drawText(ctx, pad(p1.score, 6), 4, 9, 1, '#ffffff');
-
-    drawTextCentered(ctx, 'HIGH SCORE', WORLD_W / 2, 2, 1, '#ff6ec7');
-    drawTextCentered(ctx, pad(this.hiScore, 6), WORLD_W / 2, 9, 1, '#ffffff');
-
-    if (p2) {
-      var w2 = textWidth('2UP', 1);
-      drawText(ctx, '2UP', WORLD_W - 4 - w2, 2, 1, '#5c9cff');
-      drawText(ctx, pad(p2.score, 6), WORLD_W - 4 - textWidth('000000', 1), 9, 1, '#ffffff');
+    /* player 1 block */
+    drawCritter(ctx, p1.kind, 13, 15, 1, this.clock, { scale: 0.38 });
+    if (!solo || this.mode !== 'versus') {
+      if (this.mode !== 'versus') txt(ctx, 'x' + Math.max(0, p1.lives), 22, 13, 9, p1.color, 'left');
     }
+    txt(ctx, pad(p1.score, 6), 40, 9, 13, '#ffffff', 'left');
+    this.drawExtend(ctx, p1, 40, 19, false);
 
-    /* bottom HUD row: lives, EXTEND progress, round / match clock */
-    var y3 = 18;
-    if (this.mode === 'versus') {
-      drawText(ctx, 'BUB', 4, y3, 1, '#4cf05c');
-    } else {
-      drawText(ctx, 'BUB X' + Math.max(0, p1.lives), 4, y3, 1, '#4cf05c');
-    }
-    this.drawExtend(ctx, p1, 36, y3);
-
-    var mid;
+    /* centre: round or match clock */
+    var mid, midColor;
     if (this.mode === 'versus') {
       var secs = Math.max(0, Math.ceil(this.matchTimer / 60));
-      mid = 'TIME ' + pad(secs, 3);
+      mid = Math.floor(secs / 60) + ':' + pad(secs % 60, 2);
+      midColor = secs <= 15 ? '#ff5544' : '#ffd54a';
     } else {
-      mid = 'ROUND ' + pad(this.round, 2);
+      mid = 'ROUND ' + this.round;
+      midColor = this.hurry ? '#ff5544' : '#ffd54a';
     }
-    drawTextCentered(ctx, mid, WORLD_W / 2, y3, 1, this.hurry ? '#ff5a5a' : '#ffd54a');
+    txt(ctx, mid, WORLD_W / 2, 9, 12, midColor, 'center');
 
-    if (p2) {
-      var lv = this.mode === 'versus' ? 'BOB' : 'BOB X' + Math.max(0, p2.lives);
-      drawText(ctx, lv, WORLD_W - 4 - textWidth(lv, 1), y3, 1, '#5c9cff');
-      this.drawExtend(ctx, p2, WORLD_W - 8 - textWidth(lv, 1) - 24, y3);
-    }
-
-    /* thin timer bar under the HUD */
-    if (this.mode !== 'versus' && this.state !== 'title') {
+    /* round timer bar */
+    if (this.mode !== 'versus') {
       var frac = this.hurry ? 0 : Math.max(0, this.roundTimer / ROUND_TIME);
-      ctx.fillStyle = '#20203a';
-      ctx.fillRect(0, HUD_H - 2, WORLD_W, 2);
-      ctx.fillStyle = frac < 0.25 ? '#ff5a5a' : '#4cc0ff';
-      ctx.fillRect(0, HUD_H - 2, Math.round(WORLD_W * frac), 2);
-    }
-  },
-
-  drawExtend: function (ctx, p, x, y) {
-    for (var i = 0; i < 6; i++) {
-      drawText(ctx, EXTEND_LETTERS[i], x + i * CHAR_W, y, 1,
-        p.letters[i] ? '#ffe14a' : '#3a3a58');
-    }
-  },
-
-  drawTitle: function (ctx) {
-    ctx.fillStyle = '#05050f';
-    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-
-    /* drifting bubbles behind the logo */
-    for (var i = 0; i < this.titleBubbles.length; i++) {
-      var b = this.titleBubbles[i];
-      ctx.strokeStyle = 'rgba(150,200,255,0.5)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.fillStyle = 'rgba(120,180,255,0.10)';
+      var bw = 96, bx = WORLD_W / 2 - bw / 2, by = 17;
+      roundRect(ctx, bx, by, bw, 3.4, 1.7);
+      ctx.fillStyle = 'rgba(255,255,255,0.14)';
       ctx.fill();
-    }
-
-    var t = this.titleT;
-    drawTextCenteredShadow(ctx, 'BUBBLE', WORLD_W / 2, 30 + Math.sin(t * 0.05) * 2, 4, '#4cf05c');
-    drawTextCenteredShadow(ctx, 'BOBBLE', WORLD_W / 2, 58 + Math.sin(t * 0.05 + 1) * 2, 4, '#5c9cff');
-    drawTextCentered(ctx, 'ONLINE', WORLD_W / 2, 84, 1, '#ff6ec7');
-
-    drawSprite(ctx, SPR.bub, 60, 92 + Math.sin(t * 0.08) * 3, false);
-    drawSprite(ctx, SPR.bob, WORLD_W - 76, 92 + Math.sin(t * 0.08 + 2) * 3, true);
-
-    for (var m = 0; m < MODES.length; m++) {
-      var sel = m === this.menuIndex;
-      var y = 122 + m * 16;
-      if (sel) {
-        ctx.fillStyle = 'rgba(255,225,74,0.14)';
-        ctx.fillRect(50, y - 4, WORLD_W - 100, 13);
-        drawTextCentered(ctx, MODES[m].label, WORLD_W / 2, y, 1, '#ffe14a');
-        if (Math.floor(t / 15) % 2 === 0) {
-          drawText(ctx, '*', 54, y, 1, '#ffe14a');
-          drawText(ctx, '*', WORLD_W - 58, y, 1, '#ffe14a');
-        }
+      if (frac > 0) {
+        roundRect(ctx, bx, by, bw * frac, 3.4, 1.7);
+        ctx.fillStyle = frac < 0.25 ? '#ff5544' : '#5fd0ff';
+        ctx.fill();
       } else {
-        drawTextCentered(ctx, MODES[m].label, WORLD_W / 2, y, 1, '#8890b8');
+        txt(ctx, 'HURRY!', WORLD_W / 2, 19, 8, '#ff5544', 'center');
       }
     }
 
-    drawTextCentered(ctx, MODES[this.menuIndex].blurb, WORLD_W / 2, 178, 1, '#6a72a0');
-    drawTextCentered(ctx, 'UP DOWN TO CHOOSE - ENTER TO START', WORLD_W / 2, 196, 1, '#8890b8');
-    drawTextCentered(ctx, 'HIGH SCORE ' + pad(this.hiScore, 6), WORLD_W / 2, 212, 1, '#ffffff');
-    drawTextCentered(ctx, 'P1 ARROWS SPACE   P2 A D W S', WORLD_W / 2, 228, 1, '#4a5078');
+    /* player 2 block */
+    if (p2) {
+      drawCritter(ctx, p2.kind, WORLD_W - 13, 15, -1, this.clock, { scale: 0.38 });
+      if (this.mode !== 'versus') {
+        txt(ctx, 'x' + Math.max(0, p2.lives), WORLD_W - 22, 13, 9, p2.color, 'right');
+      }
+      txt(ctx, pad(p2.score, 6), WORLD_W - 40, 9, 13, '#ffffff', 'right');
+      this.drawExtend(ctx, p2, WORLD_W - 40, 19, true);
+    } else {
+      txt(ctx, 'HI ' + pad(this.hiScore, 6), WORLD_W - 12, 9, 11, '#ff8fd0', 'right');
+    }
+  },
+
+  drawExtend: function (ctx, p, x, y, rightAlign) {
+    var pipW = 9, n = 6;
+    var startX = rightAlign ? x - n * pipW : x;
+    for (var i = 0; i < n; i++) {
+      var px = startX + i * pipW;
+      var on = p.letters[i];
+      roundRect(ctx, px, y - 4, pipW - 1.6, 8, 2);
+      ctx.fillStyle = on ? 'rgba(255,225,74,0.92)' : 'rgba(255,255,255,0.09)';
+      ctx.fill();
+      txt(ctx, EXTEND_LETTERS[i], px + (pipW - 1.6) / 2, y,
+          6.5, on ? '#3a2b00' : 'rgba(255,255,255,0.34)', 'center');
+    }
+  },
+
+  /* ---- title ---- */
+  drawTitle: function (ctx) {
+    var t = this.clock;
+    ctx.save();
+    ctx.translate(0, HUD_H);
+    drawBackdrop(ctx, 0, t);
+    ctx.restore();
+
+    ctx.save();
+    ctx.translate(0, HUD_H);
+    var cx = WORLD_W / 2;
+
+    txtGlow(ctx, 'BUBBLE', cx, 32 + Math.sin(t * 0.04) * 2.5, 40, '#57e0a5', 'center');
+    txtGlow(ctx, 'BOBBLE', cx, 68 + Math.sin(t * 0.04 + 0.7) * 2.5, 40, '#7fa8ff', 'center');
+    txt(ctx, 'O N L I N E', cx, 92, 11, '#ff8fd0', 'center');
+
+    drawCritter(ctx, 'cat', cx - 148, 176 + Math.sin(t * 0.06) * 3, 1, t, { scale: 1.5 });
+    drawCritter(ctx, 'bunny', cx + 148, 176 + Math.sin(t * 0.06 + 2) * 3, -1, t, { scale: 1.5 });
+
+    for (var m = 0; m < MODES.length; m++) {
+      var sel = m === this.menuIndex;
+      var y = 122 + m * 27;
+      var w = sel ? 176 : 160;
+      roundRect(ctx, cx - w / 2, y - 11, w, 22, 11);
+      ctx.fillStyle = sel ? 'rgba(255,225,74,0.16)' : 'rgba(255,255,255,0.05)';
+      ctx.fill();
+      ctx.strokeStyle = sel ? '#ffe14a' : 'rgba(255,255,255,0.14)';
+      ctx.lineWidth = sel ? 1.6 : 1;
+      ctx.stroke();
+      txt(ctx, MODES[m].label, cx, y, sel ? 15 : 13,
+          sel ? '#ffe14a' : 'rgba(255,255,255,0.55)', 'center');
+    }
+
+    txt(ctx, MODES[this.menuIndex].blurb, cx, 209, 10, '#9aa8d0', 'center');
+    txt(ctx, 'HIGH SCORE  ' + pad(this.hiScore, 6), cx, 228, 12, '#ffffff', 'center');
+    if (Math.floor(t / 26) % 2 === 0) {
+      txt(ctx, 'PRESS ENTER TO START', cx, 246, 12, '#ffe14a', 'center');
+    }
+    ctx.restore();
+
+    /* slim top bar so the title screen matches the in-game frame */
+    var g = ctx.createLinearGradient(0, 0, 0, HUD_H);
+    g.addColorStop(0, '#141830');
+    g.addColorStop(1, '#0a0c1c');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, VIEW_W, HUD_H);
+    txt(ctx, 'P1  ARROWS + SPACE', 12, HUD_H / 2, 10, '#57e0a5', 'left');
+    txt(ctx, 'P2  A D W S', WORLD_W - 12, HUD_H / 2, 10, '#7fa8ff', 'right');
   }
 };
 

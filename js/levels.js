@@ -1,294 +1,229 @@
 /* ------------------------------------------------------------------
-   levels.js - round layouts
+   levels.js - round layouts, 24 x 16 tiles
+
      'X' solid block (blocks every direction)
      '#' platform  (land on top, jump up through it)
      '.' empty
-   Each row is exactly COLS (20) characters, ROWS (14) rows tall.
+
+   Every rung sits 3 rows (48 units) above the one below it, which a
+   57-unit jump clears with room to spare - so the whole level can be
+   climbed on foot, and bubbles are a shortcut rather than a necessity.
+   Platforms stay inside columns 2..21 so nothing crowds the walls, and
+   rows 1-2 are always clear so nothing crowds the ceiling.
    ------------------------------------------------------------------ */
+
+var OPEN = 'X......................X';
+var ROOF = 'XXXXXXXXXXXXXXXXXXXXXXXX';
+var PITS = 'XXXX..XXXXXXXXXXXX..XXXX';   /* gaps let you fall through and wrap */
 
 var LEVELS = [
   {
-    theme: 0, drift: 0.10,
-    spawn: [[2, 12], [17, 12]],
+    theme: 0, drift: 0.10, spawn: [[3, 14], [20, 14]],
     tiles: [
-      'XXXXXXXXXXXXXXXXXXXX',
-      'X..................X',
-      'X..................X',
-      'X..................X',
-      'X.###############..X',
-      'X..................X',
-      'X..###############.X',
-      'X..................X',
-      'X.###############..X',
-      'X..................X',
-      'X..................X',
-      'X..................X',
-      'X..................X',
-      'XXXXXXXXXXXXXXXXXXXX'
+      ROOF, OPEN, OPEN,
+      'X..#################...X',
+      OPEN, OPEN,
+      'X...#################..X',
+      OPEN, OPEN,
+      'X..#################...X',
+      OPEN, OPEN,
+      'X...#################..X',
+      OPEN, OPEN, ROOF
     ],
-    enemies: [['zen', 3, 3], ['zen', 15, 3]]
+    enemies: [['chick', 5, 1], ['chick', 18, 1], ['chick', 11, 7]]
   },
   {
-    theme: 1, drift: -0.10,
-    spawn: [[2, 12], [17, 12]],
+    theme: 1, drift: -0.10, spawn: [[3, 14], [20, 14]],
     tiles: [
-      'XXXXXXXXXXXXXXXXXXXX',
-      'X..................X',
-      'X...####....####...X',
-      'X..................X',
-      'X.####........####.X',
-      'X..................X',
-      'X......######......X',
-      'X..................X',
-      'X.####........####.X',
-      'X..................X',
-      'X...####....####...X',
-      'X..................X',
-      'X..................X',
-      'XXXXXXXXXXXXXXXXXXXX'
+      ROOF, OPEN, OPEN,
+      'X...#####......#####...X',
+      OPEN, OPEN,
+      'X.......########.......X',
+      OPEN, OPEN,
+      'X...#####......#####...X',
+      OPEN, OPEN,
+      'X.......########.......X',
+      OPEN, OPEN, ROOF
     ],
-    enemies: [['zen', 5, 1], ['zen', 14, 1], ['zen', 9, 5]]
+    enemies: [['chick', 5, 1], ['chick', 18, 1], ['chick', 11, 4], ['ghost', 11, 10]]
   },
   {
-    theme: 2, drift: 0.12,
-    spawn: [[2, 12], [17, 12]],
+    theme: 2, drift: 0.12, spawn: [[3, 14], [20, 14]],
     tiles: [
-      'XXXXXXXXXXXXXXXXXXXX',
-      'X..................X',
-      'X..............###.X',
-      'X..................X',
-      'X..........###.....X',
-      'X..................X',
-      'X......###.........X',
-      'X..................X',
-      'X..###.............X',
-      'X..................X',
-      'X.###..........###.X',
-      'X..................X',
-      'X..................X',
-      'XXXXXXXXXXXXXXXXXXXX'
+      ROOF, OPEN, OPEN,
+      'X.............######...X',
+      OPEN, OPEN,
+      'X........######........X',
+      OPEN, OPEN,
+      'X...######.............X',
+      OPEN, OPEN,
+      'X........######........X',
+      OPEN, OPEN, ROOF
     ],
-    enemies: [['zen', 16, 1], ['zen', 12, 3], ['mighta', 8, 5]]
+    enemies: [['chick', 17, 1], ['ghost', 11, 4], ['chick', 5, 7], ['chick', 11, 10]]
   },
   {
-    theme: 3, drift: -0.12,
-    spawn: [[6, 12], [13, 12]],
+    theme: 3, drift: -0.12, spawn: [[8, 14], [15, 14]],
     tiles: [
-      'XXX..XXXXXXXXXX..XXX',
-      'X..................X',
-      'X..####......####..X',
-      'X..................X',
-      'X.....########.....X',
-      'X..................X',
-      'X..####......####..X',
-      'X..................X',
-      'X.....########.....X',
-      'X..................X',
-      'X..................X',
-      'X..................X',
-      'X..................X',
-      'XXX..XXXXXXXXXX..XXX'
+      PITS, OPEN, OPEN,
+      'X..######......######..X',
+      OPEN, OPEN,
+      'X.......########.......X',
+      OPEN, OPEN,
+      'X..######......######..X',
+      OPEN, OPEN,
+      'X.......########.......X',
+      OPEN, OPEN, PITS
     ],
-    enemies: [['zen', 4, 1], ['zen', 15, 1], ['monsta', 9, 5]]
+    enemies: [['chick', 5, 1], ['chick', 18, 1], ['bat', 11, 5], ['chick', 11, 10]]
   },
   {
-    theme: 4, drift: 0.08,
-    spawn: [[2, 12], [17, 12]],
+    theme: 4, drift: 0.08, spawn: [[3, 14], [20, 14]],
     tiles: [
-      'XXXXXXXXXXXXXXXXXXXX',
-      'X..................X',
-      'X..###########.....X',
-      'X............X.....X',
-      'X.....#####..X.....X',
-      'X.....X......X.....X',
-      'X.....X..#####.....X',
-      'X.....X............X',
-      'X.....##########...X',
-      'X..................X',
-      'X..................X',
-      'X..................X',
-      'X..................X',
-      'XXXXXXXXXXXXXXXXXXXX'
+      ROOF, OPEN, OPEN,
+      'X..###############.....X',
+      'X................X.....X',
+      'X................X.....X',
+      'X.....###########X.....X',
+      'X.....X................X',
+      'X.....X................X',
+      'X.....X###########.....X',
+      OPEN, OPEN,
+      'X....##############....X',
+      OPEN, OPEN, ROOF
     ],
-    enemies: [['mighta', 2, 1], ['zen', 17, 1], ['zen', 8, 3], ['mighta', 16, 5]]
+    enemies: [['ghost', 4, 1], ['chick', 20, 1], ['chick', 11, 4], ['ghost', 6, 10]]
   },
   {
-    theme: 5, drift: -0.08,
-    spawn: [[6, 12], [13, 12]],
+    theme: 5, drift: -0.08, spawn: [[8, 14], [15, 14]],
     tiles: [
-      'XXX..XXXXXXXXXX..XXX',
-      'X..................X',
-      'X.##.##.##.##.##.#.X',
-      'X..................X',
-      'X..................X',
-      'X.#.##.##.##.##.##.X',
-      'X..................X',
-      'X..................X',
-      'X.##.##.##.##.##.#.X',
-      'X..................X',
-      'X..................X',
-      'X..................X',
-      'X..................X',
-      'XXX..XXXXXXXXXX..XXX'
+      PITS, OPEN, OPEN,
+      'X..###..###..###..###..X',
+      OPEN, OPEN,
+      'X....###..###..###.....X',
+      OPEN, OPEN,
+      'X..###..###..###..###..X',
+      OPEN, OPEN,
+      'X....###..###..###.....X',
+      OPEN, OPEN, PITS
     ],
-    enemies: [['zen', 5, 1], ['zen', 14, 1], ['banebou', 7, 4], ['banebou', 12, 7]]
+    enemies: [['chick', 5, 1], ['chick', 18, 1], ['frog', 8, 4], ['frog', 15, 7], ['chick', 11, 10]]
   },
   {
-    theme: 6, drift: 0.14,
-    spawn: [[2, 12], [17, 12]],
+    theme: 6, drift: 0.14, spawn: [[3, 14], [20, 14]],
     tiles: [
-      'XXXXXXXXXXXXXXXXXXXX',
-      'X..................X',
-      'X..................X',
-      'XXXX..........XXXX.X',
-      'X..................X',
-      'X.XXXX........XXXX.X',
-      'X..................X',
-      'X....##########....X',
-      'X..................X',
-      'X.####........####.X',
-      'X..................X',
-      'X..................X',
-      'X..................X',
-      'XXXXXXXXXXXXXXXXXXXX'
+      ROOF, OPEN, OPEN,
+      'X.....############.....X',
+      'X.....X..........X.....X',
+      'X.....X..........X.....X',
+      'X.....############.....X',
+      OPEN, OPEN,
+      'X..##########..........X',
+      OPEN, OPEN,
+      'X........##########....X',
+      OPEN, OPEN, ROOF
     ],
-    enemies: [['monsta', 9, 1], ['zen', 6, 2], ['zen', 13, 2], ['monsta', 9, 6]]
+    enemies: [['bat', 11, 4], ['chick', 5, 7], ['chick', 18, 7], ['bat', 11, 10], ['ghost', 11, 13]]
   },
   {
-    theme: 7, drift: -0.14,
-    spawn: [[2, 12], [17, 12]],
+    theme: 7, drift: -0.14, spawn: [[3, 14], [20, 14]],
     tiles: [
-      'XXXXXXXXXXXXXXXXXXXX',
-      'X..................X',
-      'X..############....X',
-      'X..X..........X....X',
-      'X..X..........X....X',
-      'X..X..........X....X',
-      'X..############....X',
-      'X..................X',
-      'X.####.......####..X',
-      'X..................X',
-      'X.......####.......X',
-      'X..................X',
-      'X..................X',
-      'XXXXXXXXXXXXXXXXXXXX'
+      ROOF, OPEN, OPEN,
+      'X..####..######..####..X',
+      OPEN, OPEN,
+      'X.####..####..####.....X',
+      OPEN, OPEN,
+      'X..####..######..####..X',
+      OPEN, OPEN,
+      'X.####..####..####.....X',
+      OPEN, OPEN, ROOF
     ],
-    enemies: [['mighta', 8, 4], ['banebou', 11, 4], ['zen', 3, 7], ['mighta', 16, 7]]
+    enemies: [['ghost', 5, 1], ['frog', 18, 1], ['chick', 11, 4], ['ghost', 8, 7], ['chick', 16, 10]]
   },
   {
-    theme: 0, drift: 0.16,
-    spawn: [[7, 12], [12, 12]],
+    theme: 0, drift: 0.16, spawn: [[8, 14], [15, 14]],
     tiles: [
-      'XXX..XXXXXXXXXX..XXX',
-      'X..................X',
-      'X.###..........###.X',
-      'X....X........X....X',
-      'X....X........X....X',
-      'X..#####....#####..X',
-      'X..................X',
-      'X..................X',
-      'X.....######.......X',
-      'X..................X',
-      'X.###..........###.X',
-      'X..................X',
-      'X..................X',
-      'XXX..XXXXXXXXXX..XXX'
+      PITS, OPEN, OPEN,
+      'X..#####......#####....X',
+      OPEN, OPEN,
+      'X......##########......X',
+      OPEN, OPEN,
+      'X..#####......#####....X',
+      OPEN, OPEN,
+      'X......##########......X',
+      OPEN, OPEN, PITS
     ],
-    enemies: [['zen', 9, 1], ['zen', 5, 7], ['zen', 13, 7], ['monsta', 9, 6]]
+    enemies: [['chick', 5, 1], ['chick', 18, 1], ['bat', 11, 4], ['chick', 8, 7], ['frog', 15, 10]]
   },
   {
-    theme: 3, drift: -0.16,
-    spawn: [[17, 12], [2, 12]],
+    theme: 3, drift: -0.16, spawn: [[20, 14], [3, 14]],
     tiles: [
-      'XXXXXXXXXXXXXXXXXXXX',
-      'X..................X',
-      'X.##############...X',
-      'X..............X...X',
-      'X...###########X...X',
-      'X...X..............X',
-      'X...X###########...X',
-      'X...X..........X...X',
-      'X...###########X...X',
-      'X..............X...X',
-      'X.##############...X',
-      'X..................X',
-      'X..................X',
-      'XXXXXXXXXXXXXXXXXXXX'
+      ROOF, OPEN, OPEN,
+      'X..################....X',
+      OPEN, OPEN,
+      'X....################..X',
+      OPEN, OPEN,
+      'X..################....X',
+      OPEN, OPEN,
+      'X....################..X',
+      OPEN, OPEN, ROOF
     ],
-    enemies: [['mighta', 8, 1], ['zen', 8, 3], ['mighta', 8, 5], ['mighta', 8, 7]]
+    enemies: [['ghost', 5, 1], ['ghost', 17, 1], ['chick', 11, 4], ['ghost', 8, 7], ['chick', 16, 10]]
   },
   {
-    theme: 5, drift: 0.18,
-    spawn: [[6, 12], [13, 12]],
+    theme: 5, drift: 0.18, spawn: [[8, 14], [15, 14]],
     tiles: [
-      'XXX..XXXXXXXXXX..XXX',
-      'X..................X',
-      'X..##..######..##..X',
-      'X..................X',
-      'X.####..####..####.X',
-      'X..................X',
-      'X..##..######..##..X',
-      'X..................X',
-      'X.####..####..####.X',
-      'X..................X',
-      'X..##..######..##..X',
-      'X..................X',
-      'X..................X',
-      'XXX..XXXXXXXXXX..XXX'
+      PITS, OPEN, OPEN,
+      'X..###..###..###..###..X',
+      OPEN, OPEN,
+      'X.###..######..###.....X',
+      OPEN, OPEN,
+      'X..###..###..###..###..X',
+      OPEN, OPEN,
+      'X.###..######..###.....X',
+      OPEN, OPEN, PITS
     ],
-    enemies: [['banebou', 6, 1], ['banebou', 13, 1], ['monsta', 9, 3],
-              ['monsta', 6, 5], ['zen', 9, 7]]
+    enemies: [['frog', 5, 1], ['frog', 18, 1], ['bat', 11, 4],
+              ['bat', 7, 7], ['chick', 16, 10]]
   },
   {
-    theme: 4, drift: 0.20,
-    spawn: [[2, 12], [17, 12]],
+    theme: 4, drift: 0.20, spawn: [[3, 14], [20, 14]],
     tiles: [
-      'XXXXXXXXXXXXXXXXXXXX',
-      'X..................X',
-      'X..................X',
-      'X...##########.....X',
-      'X..................X',
-      'X.....######.......X',
-      'X..................X',
-      'X...##########.....X',
-      'X..................X',
-      'X.##............##.X',
-      'X..................X',
-      'X..................X',
-      'X..................X',
-      'XXXXXXXXXXXXXXXXXXXX'
+      ROOF, OPEN, OPEN,
+      'X.....############.....X',
+      OPEN, OPEN,
+      'X..###..........###....X',
+      OPEN, OPEN,
+      'X.....############.....X',
+      OPEN, OPEN,
+      'X..###..........###....X',
+      OPEN, OPEN, ROOF
     ],
-    enemies: [['zen', 6, 2], ['zen', 12, 2], ['mighta', 8, 4], ['mighta', 10, 4],
-              ['monsta', 9, 6], ['banebou', 5, 8]]
+    enemies: [['chick', 6, 1], ['chick', 17, 1], ['ghost', 9, 4], ['ghost', 14, 4],
+              ['bat', 11, 7], ['frog', 6, 10]]
   }
 ];
 
 /* Symmetric head-to-head arena used by VERSUS mode. */
 var VERSUS_LEVEL = {
-  theme: 6, drift: 0.10,
-  spawn: [[2, 12], [17, 12]],
+  theme: 6, drift: 0.10, spawn: [[3, 14], [20, 14]],
   tiles: [
-    'XXXXXXXXXXXXXXXXXXXX',
-    'X..................X',
-    'X..####......####..X',
-    'X..................X',
-    'X.......####.......X',
-    'X..................X',
-    'X..####......####..X',
-    'X..................X',
-    'X.......####.......X',
-    'X..................X',
-    'X..####......####..X',
-    'X..................X',
-    'X..................X',
-    'XXXXXXXXXXXXXXXXXXXX'
+    ROOF, OPEN, OPEN,
+    'X...#####......#####...X',
+    OPEN, OPEN,
+    'X.......########.......X',
+    OPEN, OPEN,
+    'X...#####......#####...X',
+    OPEN, OPEN,
+    'X.......########.......X',
+    OPEN, OPEN, ROOF
   ],
   enemies: []
 };
 
 /* Spots monsters drop into during a versus match. */
-var VERSUS_SPAWN_POINTS = [[5, 1], [14, 1], [9, 3], [4, 7], [15, 7], [9, 9]];
-var VERSUS_TYPES = ['zen', 'zen', 'mighta', 'monsta', 'banebou'];
+var VERSUS_SPAWN_POINTS = [[6, 1], [17, 1], [11, 4], [5, 7], [18, 7], [11, 10]];
+var VERSUS_TYPES = ['chick', 'chick', 'ghost', 'bat', 'frog'];
 
 function tileAt(level, col, row) {
   if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return '.';

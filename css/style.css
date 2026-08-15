@@ -1,8 +1,8 @@
 :root {
-  --ink: #d8d8f0;
-  --dim: #7f7fa8;
-  --panel: #14141f;
-  --edge: #2c2c46;
+  --ink: #e6ebff;
+  --dim: #8f9bc4;
+  --panel: rgba(255, 255, 255, .045);
+  --edge: rgba(255, 255, 255, .10);
 }
 
 * { box-sizing: border-box; }
@@ -10,34 +10,37 @@
 html, body {
   margin: 0;
   padding: 0;
-  background: #08080e;
+  height: 100%;
+  background: radial-gradient(120% 100% at 50% 0%, #171c3c 0%, #080a18 55%, #04050d 100%);
   color: var(--ink);
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-family: "Baloo 2", "Segoe UI Rounded", ui-rounded, "SF Pro Rounded",
+               system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
   -webkit-text-size-adjust: 100%;
   overscroll-behavior: none;
 }
 
 #shell {
-  min-height: 100vh;
+  min-height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
-  padding: 14px 12px 28px;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px 12px 14px;
 }
 
 #stage {
   line-height: 0;
-  border: 2px solid var(--edge);
-  border-radius: 4px;
-  background: #000;
-  box-shadow: 0 0 0 4px #000, 0 12px 40px rgba(0, 0, 0, .8);
+  border-radius: 16px;
+  overflow: hidden;
+  background: #05060f;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .10),
+              0 30px 80px rgba(0, 0, 0, .65),
+              0 0 90px rgba(90, 120, 255, .12);
 }
 
 #screen {
   display: block;
-  image-rendering: pixelated;
-  image-rendering: crisp-edges;
   touch-action: none;
 }
 
@@ -45,7 +48,7 @@ html, body {
 #touch {
   display: none;
   width: 100%;
-  max-width: 640px;
+  max-width: 720px;
   justify-content: space-between;
   gap: 12px;
   user-select: none;
@@ -53,76 +56,76 @@ html, body {
 
 body.touch #touch { display: flex; }
 
-#touch .pad {
-  display: flex;
-  gap: 10px;
-}
+#touch .pad { display: flex; gap: 10px; }
 
 .tbtn {
-  min-width: 72px;
-  height: 62px;
+  min-width: 76px;
+  height: 64px;
   font: inherit;
   font-size: 20px;
+  font-weight: 700;
   color: var(--ink);
   background: var(--panel);
-  border: 2px solid var(--edge);
-  border-radius: 10px;
+  border: 1px solid var(--edge);
+  border-radius: 18px;
+  backdrop-filter: blur(6px);
   touch-action: none;
   -webkit-tap-highlight-color: transparent;
+  transition: background .08s, transform .08s;
 }
 
-.tbtn.wide { min-width: 92px; font-size: 12px; letter-spacing: 1px; }
-.tbtn.held { background: #2a2a44; border-color: #5a5a8c; }
+.tbtn.wide { min-width: 104px; font-size: 13px; letter-spacing: 1px; }
+.tbtn.held { background: rgba(255, 255, 255, .17); transform: scale(.96); }
 
-/* ---- info panels ---- */
+/* ---- compact info strip ---- */
 #help {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px 20px;
   justify-content: center;
-  width: 100%;
-  max-width: 860px;
+  align-items: center;
+  font-size: 12.5px;
+  color: var(--dim);
+  text-align: center;
 }
 
-#help .col {
-  flex: 1 1 240px;
+#help span { white-space: nowrap; }
+
+#help b {
+  color: var(--ink);
   background: var(--panel);
   border: 1px solid var(--edge);
   border-radius: 6px;
-  padding: 10px 12px;
+  padding: 1px 7px;
+  font-weight: 600;
 }
-
-#help h2 {
-  margin: 0 0 6px;
-  font-size: 11px;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  color: #ffd54a;
-}
-
-#help p { margin: 0; font-size: 12px; color: var(--dim); line-height: 1.7; }
-#help b { color: var(--ink); }
 
 #rules {
   width: 100%;
-  max-width: 860px;
+  max-width: 900px;
   background: var(--panel);
   border: 1px solid var(--edge);
-  border-radius: 6px;
-  padding: 10px 12px;
-  font-size: 12px;
+  border-radius: 12px;
+  padding: 10px 16px;
+  font-size: 13px;
   color: var(--dim);
 }
 
 #rules summary {
   cursor: pointer;
   color: #ffd54a;
-  letter-spacing: 2px;
+  letter-spacing: 1.5px;
   text-transform: uppercase;
-  font-size: 11px;
+  font-size: 11.5px;
+  font-weight: 700;
 }
 
-#rules ul { margin: 10px 0 2px; padding-left: 18px; line-height: 1.9; }
+#rules ul { margin: 10px 0 2px; padding-left: 18px; line-height: 1.85; }
 #rules b { color: var(--ink); }
 
-body.touch #help { display: none; }
+body.touch #help,
+body.touch #rules { display: none; }
+
+@media (max-height: 720px) {
+  #rules { display: none; }
+}

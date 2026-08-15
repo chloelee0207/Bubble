@@ -84,6 +84,7 @@ var Sound = {
       case 'jump':      this.blip('square', 300, 720, 0.11, 0.18); break;
       case 'bubble':    this.blip('sine', 900, 380, 0.13, 0.16); break;
       case 'pop':       this.blip('square', 620, 180, 0.07, 0.16); this.noise(0.06, 0.10, 1800); break;
+      case 'shoot':     this.blip('triangle', 1100, 500, 0.08, 0.12); break;
       case 'trap':      this.blip('sine', 400, 1100, 0.14, 0.18); break;
       case 'kill':      this.blip('square', 880, 220, 0.18, 0.20); this.noise(0.12, 0.12, 900); break;
       case 'chain':     this.blip('square', 520, 1600, 0.28, 0.22); break;

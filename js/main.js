@@ -1,5 +1,5 @@
 /* ------------------------------------------------------------------
-   main.js - boot, input, fixed-timestep loop, screen scaling
+   main.js - boot, input, fixed-timestep loop, responsive scaling
    ------------------------------------------------------------------ */
 
 (function () {
@@ -35,10 +35,7 @@
     wakeAudio();
   });
 
-  window.addEventListener('keyup', function (e) {
-    keys[e.code] = false;
-  });
-
+  window.addEventListener('keyup', function (e) { keys[e.code] = false; });
   window.addEventListener('blur', function () { keys = {}; });
 
   /* ---- touch pad ---- */
@@ -63,7 +60,12 @@
 
   canvas.addEventListener('pointerdown', function () { wakeAudio(); });
 
-  /* ---- build the per-frame input snapshot ---- */
+  function clearLatches() {
+    latch = {};
+    touchLatch.jump = false;
+    touchLatch.fire = false;
+  }
+
   function buildInputs() {
     var p1 = {
       left: down('ArrowLeft') || touchState.left,
@@ -84,12 +86,6 @@
     return [p1, p2];
   }
 
-  function clearLatches() {
-    latch = {};
-    touchLatch.jump = false;
-    touchLatch.fire = false;
-  }
-
   function buildUi() {
     return {
       upPressed: hit('ArrowUp') || hit('KeyW'),
@@ -100,16 +96,15 @@
     };
   }
 
-  /* ---- responsive integer scaling ---- */
+  /* ---- fill as much of the window as the aspect ratio allows ---- */
   function resize() {
-    var availW = Math.min(window.innerWidth - 24, 1100);
-    var availH = window.innerHeight - (document.body.classList.contains('touch') ? 190 : 250);
-    var scale = Math.min(availW / VIEW_W, availH / VIEW_H);
-    scale = Math.max(1, Math.floor(scale * 2) / 2);   /* half-step scaling */
-    canvas.style.width = Math.round(VIEW_W * scale) + 'px';
-    canvas.style.height = Math.round(VIEW_H * scale) + 'px';
+    var chrome = document.body.classList.contains('touch') ? 148 : 96;
+    var availW = window.innerWidth - 24;
+    var availH = window.innerHeight - chrome;
+    layoutCanvas(canvas, Math.max(280, availW), Math.max(220, availH));
   }
   window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', resize);
 
   /* ---- boot ---- */
   initGfx();
@@ -130,13 +125,8 @@
     while (acc >= STEP && guard < 5) {
       acc -= STEP;
       guard++;
-
       var ui = buildUi();
-
-      if (hit('KeyM')) {
-        Sound.setMuted(!Sound.muted);
-      }
-
+      if (hit('KeyM')) Sound.setMuted(!Sound.muted);
       Game.update(buildInputs(), ui);
       clearLatches();
     }
