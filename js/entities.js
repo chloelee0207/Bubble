@@ -32,6 +32,7 @@ function moveAndCollide(e, level) {
   e.hitWall = false;
 
   /* ---- horizontal ---- */
+  var prevX = e.x;
   e.x += e.vx;
   if (e.vx !== 0) {
     /* Probe rows are clamped into the grid. Above the ceiling or below the
@@ -44,20 +45,33 @@ function moveAndCollide(e, level) {
     if (e.vx > 0) {
       col = Math.floor((e.x + e.w - 1) / TILE);
       for (r = r0; r <= r1; r++) {
-        if (isSolid(level, col, r)) { e.x = col * TILE - e.w; e.hitWall = true; break; }
+        /* Never resolve further back than where the step began. An entity
+           whose head is a hair inside the ceiling row would otherwise be
+           "pushed out of" a column it already fills, teleporting it a whole
+           body width backwards. */
+        if (isSolid(level, col, r)) {
+          e.x = Math.max(col * TILE - e.w, prevX);
+          e.hitWall = true;
+          break;
+        }
       }
     } else {
       col = Math.floor(e.x / TILE);
       for (r = r0; r <= r1; r++) {
-        if (isSolid(level, col, r)) { e.x = (col + 1) * TILE; e.hitWall = true; break; }
+        if (isSolid(level, col, r)) {
+          e.x = Math.min((col + 1) * TILE, prevX);
+          e.hitWall = true;
+          break;
+        }
       }
     }
     if (e.hitWall) e.vx = 0;
   }
 
-  /* backstop: the arena edge is absolute, whatever the tiles say */
-  if (e.x < 0) { e.x = 0; e.vx = 0; e.hitWall = true; }
-  else if (e.x + e.w > WORLD_W) { e.x = WORLD_W - e.w; e.vx = 0; e.hitWall = true; }
+  /* backstop: the arena edge is absolute, whatever the tiles say. Every
+     layout is framed by a one-tile wall, so stop just inside it. */
+  if (e.x < TILE) { e.x = TILE; e.vx = 0; e.hitWall = true; }
+  else if (e.x + e.w > WORLD_W - TILE) { e.x = WORLD_W - TILE - e.w; e.vx = 0; e.hitWall = true; }
 
   /* ---- vertical ---- */
   var prevBottom = e.y + e.h;
@@ -453,7 +467,7 @@ var ENEMY_DEFS = {
 };
 
 class Enemy {
-  constructor(kind, col, row, difficulty) {
+  constructor(kind, col, row, difficulty, level) {
     var d = ENEMY_DEFS[kind];
     this.kind = kind;
     this.type = kind;
@@ -462,6 +476,21 @@ class Enemy {
     this.h = d.h;
     this.x = col * TILE + (TILE - d.w) / 2;
     this.y = row * TILE + (TILE - d.h);
+    /* Monsters are taller than a tile, so a bottom-aligned spawn pokes their
+       head into whatever sits above. Drop them until it is clear, or they
+       start life wedged in the ceiling and jitter instead of patrolling. */
+    var lvl = level || (typeof Game !== 'undefined' ? Game.level : null);
+    if (lvl) {
+      for (var guard = 0; guard < 3; guard++) {
+        var tr = Math.floor(this.y / TILE);
+        var a0 = Math.floor(this.x / TILE);
+        var a1 = Math.floor((this.x + this.w - 1) / TILE);
+        var blocked = false;
+        for (var ac = a0; ac <= a1; ac++) if (isSolid(lvl, ac, tr)) blocked = true;
+        if (!blocked) break;
+        this.y = (tr + 1) * TILE;
+      }
+    }
     this.dir = Math.random() < 0.5 ? -1 : 1;
     this.vx = 0;
     this.vy = 0;

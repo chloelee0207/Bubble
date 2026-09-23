@@ -133,6 +133,21 @@ HURRY UP! timer followed by an invincible hunter, elemental bubbles firing
 opposite the player's facing, and the fall-off-the-bottom screen wrap. Level
 layouts, characters and artwork are original work, not copies of Taito's.
 
+## Tests
+
+`tests/regression.js` drives the real game in headless Chromium and asserts the
+rules and the physics invariants — including a fuzz that throws random input at
+all 13 arenas in all three modes and checks that nothing ever leaves the arena,
+gets wedged in geometry, or strands the player off-screen.
+
+```
+npx http-server . -p 8123 -c-1 &
+npx playwright install chromium      # once
+node tests/regression.js
+```
+
+It exits non-zero on failure. `GAME_URL` overrides the address.
+
 ## Deploying
 
 `.github/workflows/pages.yml` publishes the repo root to GitHub Pages on every

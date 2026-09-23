@@ -109,10 +109,10 @@ var Game = {
     } else {
       for (var i = 0; i < def.enemies.length; i++) {
         var e = def.enemies[i];
-        this.enemies.push(new Enemy(e[0], e[1], e[2], d));
+        this.enemies.push(new Enemy(e[0], e[1], e[2], d, this.level));
       }
       for (var k = 0; k < d && k < 4; k++) {
-        this.enemies.push(new Enemy('chick', 4 + k * 5, 1, d));
+        this.enemies.push(new Enemy('chick', 4 + k * 5, 1, d, this.level));
       }
     }
 
@@ -320,7 +320,8 @@ var Game = {
         /* a generous landing window makes bubble-riding easy to pull off */
         if (!b.trapped && !b.content && p.vy >= 0 && horizontally &&
             pb - p.vy <= top + 6 && pb >= top - 1 && pb <= top + 13) {
-          p.y = top - p.h;
+          /* keep the rider's head out of the ceiling row */
+          p.y = Math.max(top - p.h, TILE);
           p.vy = 0;
           p.onGround = true;
           p.coyote = COYOTE_FRAMES;
@@ -441,7 +442,7 @@ var Game = {
   spawnVersusMonster: function () {
     var pt = VERSUS_SPAWN_POINTS[Math.floor(Math.random() * VERSUS_SPAWN_POINTS.length)];
     var t = VERSUS_TYPES[Math.floor(Math.random() * VERSUS_TYPES.length)];
-    this.enemies.push(new Enemy(t, pt[0], pt[1], 1));
+    this.enemies.push(new Enemy(t, pt[0], pt[1], 1, this.level));
   },
 
   /* ---------------------------------------------------------------- */
