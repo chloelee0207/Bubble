@@ -16,6 +16,8 @@ function approach(v, target, step) {
   return v;
 }
 
+function clampRow(r) { return r < 0 ? 0 : (r >= ROWS ? ROWS - 1 : r); }
+
 /* Fall off the bottom of the screen, come back in at the top. */
 function wrapVertical(e) {
   if (e.y > WORLD_H) e.y = -e.h;
@@ -32,8 +34,12 @@ function moveAndCollide(e, level) {
   /* ---- horizontal ---- */
   e.x += e.vx;
   if (e.vx !== 0) {
-    var r0 = Math.floor(e.y / TILE);
-    var r1 = Math.floor((e.y + e.h - 1) / TILE);
+    /* Probe rows are clamped into the grid. Above the ceiling or below the
+       floor an entity is inside a wrap chute, and the row it is passing
+       through must still stop it - otherwise out-of-range rows read as empty
+       and it can walk straight out of the arena. */
+    var r0 = clampRow(Math.floor(e.y / TILE));
+    var r1 = clampRow(Math.floor((e.y + e.h - 1) / TILE));
     var col, r;
     if (e.vx > 0) {
       col = Math.floor((e.x + e.w - 1) / TILE);
@@ -48,6 +54,10 @@ function moveAndCollide(e, level) {
     }
     if (e.hitWall) e.vx = 0;
   }
+
+  /* backstop: the arena edge is absolute, whatever the tiles say */
+  if (e.x < 0) { e.x = 0; e.vx = 0; e.hitWall = true; }
+  else if (e.x + e.w > WORLD_W) { e.x = WORLD_W - e.w; e.vx = 0; e.hitWall = true; }
 
   /* ---- vertical ---- */
   var prevBottom = e.y + e.h;
@@ -65,7 +75,9 @@ function moveAndCollide(e, level) {
       var t = tileAt(level, c, row);
       var landing = (t === 'X') ||
                     (t === '#' && prevBottom <= row * TILE + LAND_TOLERANCE);
-      if (landing) {
+      /* Row 0 is always the ceiling. Resting on top of it would leave the
+         entity off-screen with no way down, so fall through instead. */
+      if (landing && row > 0) {
         e.y = row * TILE - e.h;
         e.vy = 0;
         e.onGround = true;
@@ -331,7 +343,11 @@ class Bubble {
       var mr = Math.floor(this.y / TILE);
       if (isSolid(game.level, lc, mr)) { this.x = (lc + 1) * TILE + this.r; this.vx = Math.abs(this.vx); }
       if (isSolid(game.level, rc, mr)) { this.x = rc * TILE - this.r; this.vx = -Math.abs(this.vx); }
-      if (this.y - this.r < 0) { this.y = this.r; this.vy = 0; }
+      /* Never drift above the ceiling row. A bubble that slipped out through
+         a wrap gap used to carry its rider clean off the top of the screen.
+         The extra slack keeps a rider fully in view. */
+      var minY = TILE + this.r + 4;
+      if (this.y < minY) { this.y = minY; this.vy = 0; }
     }
 
     if (this.escapeT > 0 && --this.escapeT === 0) {
